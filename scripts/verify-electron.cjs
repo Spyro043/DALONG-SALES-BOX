@@ -1,0 +1,8 @@
+const fs=require('fs'),os=require('os'),path=require('path'),assert=require('assert/strict');
+const {_electron}=require(process.env.DSB_PLAYWRIGHT_PATH||'playwright');
+async function main(){const env={...process.env,DSB_DATA_DIR:fs.mkdtempSync(path.join(os.tmpdir(),'dsb-electron-'))};delete env.ELECTRON_RUN_AS_NODE;
+const app=await _electron.launch({executablePath:process.env.DSB_EXE||require('electron'),args:process.env.DSB_EXE?[]:[path.join(__dirname,'..')],env,timeout:60000});
+app.process().stdout.on('data',b=>process.stdout.write(b));
+app.process().stderr.on('data',b=>process.stdout.write(b));
+try{const page=await app.firstWindow();await page.getByRole('heading',{name:'客户跟进',exact:true}).waitFor();const url=page.url();const response=await fetch(url+'api/workspace/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({collection:'documents',record:{type:'QT',number:'PDF-TEST',date:'2026-09-14',currency:'USD',seller:{company:'Dragon sales box'},buyer:{company:'PDF test only'},items:[{name:'Test product',quantity:2,price:20,unit:'PCS'}]}})});const doc=await response.json();assert(response.ok,JSON.stringify(doc));const pdf=await fetch(url+'api/workspace/document?id='+doc.id+'&format=pdf');const bytes=Buffer.from(await pdf.arrayBuffer());assert.equal(bytes.subarray(0,4).toString(),'%PDF',bytes.toString().slice(0,200));const dir=path.join(__dirname,'..','tmp','dsb-qa');fs.writeFileSync(path.join(dir,'desktop-export.pdf'),bytes);await page.screenshot({path:path.join(dir,'electron-home.png'),fullPage:true});console.log('PASS: Electron startup, isolated storage, actual PDF export '+bytes.length+' bytes');}finally{await app.close();}}
+main().catch(e=>{console.error(e);process.exitCode=1;});

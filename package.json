@@ -1,0 +1,69 @@
+{
+  "name": "outreach-desk",
+  "version": "2.1.2",
+  "description": "Dragon sales box - customer, product, document and email workspace by Spyro Yu",
+  "author": "Spyro Yu <y1921127348@gmail.com>",
+  "main": "electron-main.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "desktop": "electron .",
+    "build:win-dir": "electron-builder --win dir",
+    "build:win": "electron-builder --win portable",
+    "build:win-installer": "electron-builder --win nsis",
+    "test": "node scripts/verify-email-precheck.cjs && node scripts/verify-workspace.cjs && node scripts/verify-crm.cjs"
+  },
+  "build": {
+    "appId": "com.outreachdesk.app",
+    "productName": "Dragon sales box",
+    "files": [
+      "app.js",
+      "desk.html",
+      "desk.css",
+      "desk.js",
+      "workspace-api.js",
+      "legacy-migration.js",
+      "assets/**",
+      "AUTHOR.md",
+      "electron-main.js",
+      "index.html",
+      "server.js",
+      "styles.css",
+      "README.md",
+      "ROADMAP.md",
+      "package.json",
+      "crm-core.js",
+      "crm-api.js",
+      "crm-ui.js",
+      "email-precheck.js",
+      "public-research.js"
+    ],
+    "win": {
+      "icon": "assets/dsb.ico",
+      "signAndEditExecutable": false,
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    },
+    "portable": {
+      "artifactName": "Dragon-Sales-Box-${version}.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "exceljs": "^4.4.0",
+    "lucide": "^1.45.0",
+    "nodemailer": "^7.0.13",
+    "sanitize-html": "^2.17.0"
+  }
+}

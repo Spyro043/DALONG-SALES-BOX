@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Outreach Desk MVP</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">OD</span>
+          <div>
+            <strong>Outreach Desk</strong>
+            <span>合规客户开发工作台</span>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="主导航">
+          <button class="nav-item active" data-tab="discovery">市场发现</button>
+          <button class="nav-item" data-tab="finder">找联系人</button>
+          <button class="nav-item" data-tab="leads">线索</button>
+          <button class="nav-item" data-tab="verifier">验证</button>
+          <button class="nav-item" data-tab="composer">邮件</button>
+          <button class="nav-item" data-tab="pipeline">跟进</button>
+          <button class="nav-item" data-tab="compliance">合规</button>
+          <button class="nav-item" data-tab="settings">设置</button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <span id="leadCount">0 个线索</span>
+          <button id="exportBtn" class="ghost-button" type="button">导出 CSV</button>
+          <div class="author-watermark">
+            <strong>Spyro Yu</strong>
+            <span>y1921127348@gmail.com</span>
+          </div>
+          <a class="github-button" href="https://github.com/Spyro043/DALONG-SALES-BOX" target="_blank" rel="noreferrer">GitHub 项目</a>
+        </div>
+      </aside>
+
+      <main class="main">
+        <section class="topbar">
+          <div>
+            <h1>客户开发 MVP</h1>
+            <p>从公司名单出发，找到公开联系方式，入库后生成开发信并跟进。</p>
+          </div>
+          <div class="topbar-actions">
+            <label class="file-button">
+              导入 CSV
+              <input id="csvInput" type="file" accept=".csv,text/csv" />
+            </label>
+            <button id="sampleBtn" class="primary-button" type="button">载入示例</button>
+          </div>
+        </section>
+
+        <section id="discovery" class="tab-panel active">
+          <div class="grid two-columns">
+            <form id="discoveryForm" class="panel">
+              <div class="panel-heading">
+                <h2>全网搜索有效公司</h2>
+                <span>只保留公司结果</span>
+              </div>
+              <div class="form-grid">
+                <label>
+                  目标行业
+                  <input id="discoveryIndustry" required placeholder="例如 FPSO 船东、海上平台、海工服务" />
+                </label>
+                <label>
+                  目标地区
+                  <input id="discoveryRegion" placeholder="例如 Global、Singapore、Middle East" />
+                </label>
+                <label class="full">
+                  公司类型
+                  <textarea id="discoveryCompanyTypes" rows="4" placeholder="每行一个，例如：船东&#10;代理商&#10;贸易商&#10;海上平台运营商"></textarea>
+                </label>
+                <label class="full">
+                  产品/场景关键词
+                  <textarea id="discoveryKeywords" rows="4" placeholder="每行一个，例如：oil spill response products&#10;offshore platform safety equipment&#10;marine pollution control"></textarea>
+                </label>
+                <label>
+                  搜索语言
+                  <select id="discoveryLanguage">
+                    <option value="en">English</option>
+                    <option value="zh">中文</option>
+                    <option value="mixed">中英混合</option>
+                  </select>
+                </label>
+                <label>
+                  结果数量
+                  <input id="discoveryLimit" type="number" min="5" max="50" value="20" />
+                </label>
+              </div>
+              <button class="primary-button full-width" type="submit">开始全网搜索</button>
+              <p class="hint">系统会过滤新闻、百科、文章、论坛、招聘和普通内容站，只保留像官网、公司页、供应商/代理商目录的结果。</p>
+            </form>
+
+            <div class="panel">
+              <div class="panel-heading">
+                <h2>搜索摘要</h2>
+                <span id="discoverySummary">尚未搜索</span>
+              </div>
+              <ul id="discoveryQueries" class="roadmap">
+                <li>填写行业、公司类型和关键词后开始搜索。</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="panel section-gap">
+            <div class="panel-heading">
+                <h2>有效公司列表</h2>
+                <span>已过滤内容站</span>
+            </div>
+            <div id="discoveryResults" class="company-results">
+              <div class="empty-block">搜索后会在这里显示公司官网、LinkedIn/目录页和来源摘要。</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="finder" class="tab-panel">
+          <div class="grid two-columns">
+            <form id="finderForm" class="panel">
+              <div class="panel-heading">
+                <h2>从公司找联系人</h2>
+                <span>公开来源辅助</span>
+              </div>
+              <div class="form-grid">
+                <label>
+                  公司
+                  <input id="findCompany" required placeholder="例如 Apex Medical Supply" />
+                </label>
+                <label>
+                  官网
+                  <input id="findWebsite" placeholder="https://example.com" />
+                </label>
+                <label>
+                  目标职位
+                  <select id="findRole">
+                    <option>Purchasing Manager</option>
+                    <option>Procurement Manager</option>
+                    <option>Sourcing Manager</option>
+                    <option>Operations Director</option>
+                    <option>Import Manager</option>
+                    <option>Business Owner</option>
+                  </select>
+                </label>
+                <label>
+                  国家/地区
+                  <input id="findRegion" placeholder="United States" />
+                </label>
+                <label class="full">
+                  业务关键词
+                  <input id="findKeywords" placeholder="medical supplies, disposable gloves, importer" />
+                </label>
+              </div>
+              <button class="primary-button full-width" type="submit">生成寻找方案</button>
+            </form>
+
+            <div class="panel">
+              <div class="panel-heading">
+                <h2>联网搜索联系人</h2>
+                <span id="contactSearchSummary">公开网页结果</span>
+              </div>
+              <div class="button-row compact-row">
+                <button id="runContactSearchBtn" class="primary-button" type="button">联网搜索联系人</button>
+                <button id="showSearchLinksBtn" class="ghost-button" type="button">查看搜索入口</button>
+              </div>
+              <div id="contactResults" class="contact-results">
+                <div class="empty-block">输入公司名/官网后，点击联网搜索联系人。</div>
+              </div>
+              <div id="searchLinks" class="link-grid hidden"></div>
+            </div>
+          </div>
+
+          <div class="grid two-columns section-gap">
+            <div class="panel">
+              <div class="panel-heading">
+                <h2>邮箱规则推测</h2>
+                <span>需要验证后再发送</span>
+              </div>
+              <div class="form-grid">
+                <label>
+                  联系人姓名
+                  <input id="candidateName" placeholder="Jane Smith" />
+                </label>
+                <label>
+                  公司域名
+                  <input id="candidateDomain" placeholder="example.com" />
+                </label>
+              </div>
+              <div class="button-row">
+                <button id="guessEmailBtn" class="primary-button" type="button">生成可能邮箱</button>
+                <button id="verifyGuessesBtn" class="ghost-button" type="button">验证所有候选邮箱</button>
+                <button id="copyGuessesBtn" class="ghost-button" type="button">复制所有邮箱</button>
+                <button id="importGuessesBtn" class="ghost-button" type="button">导入到验证页</button>
+                <button id="openMailmeteorBtn" class="ghost-button" type="button">打开 Mailmeteor 查询</button>
+              </div>
+              <div id="emailGuesses" class="guess-list"></div>
+            </div>
+
+            <form id="foundContactForm" class="panel">
+              <div class="panel-heading">
+                <h2>确认后加入线索</h2>
+                <span>保留来源记录</span>
+              </div>
+              <div class="form-grid">
+                <label>
+                  公司
+                  <input name="company" id="foundCompany" required />
+                </label>
+                <label>
+                  官网
+                  <input name="website" id="foundWebsite" />
+                </label>
+                <label>
+                  联系人
+                  <input name="name" id="foundName" />
+                </label>
+                <label>
+                  职位
+                  <input name="title" id="foundTitle" />
+                </label>
+                <label>
+                  邮箱
+                  <input name="email" id="foundEmail" type="email" />
+                </label>
+                <label>
+                  国家/地区
+                  <input name="region" id="foundRegion" />
+                </label>
+                <label>
+                  来源
+                  <select name="source" id="foundSource">
+                    <option>公司官网公开信息</option>
+                    <option>联系页/团队页</option>
+                    <option>展会名录</option>
+                    <option>B2B 平台公开信息</option>
+                    <option>合规数据供应商</option>
+                    <option>人工确认</option>
+                  </select>
+                </label>
+                <label>
+                  状态
+                  <select name="status">
+                    <option>待研究</option>
+                    <option selected>待发信</option>
+                    <option>已触达</option>
+                    <option>已回复</option>
+                    <option>已退订</option>
+                  </select>
+                </label>
+                <label class="full">
+                  来源说明/备注
+                  <textarea name="notes" id="foundNotes" rows="4" placeholder="例如：官网 contact 页面公开邮箱；需验证邮箱有效性。"></textarea>
+                </label>
+              </div>
+              <button class="primary-button full-width" type="submit">加入线索池</button>
+            </form>
+          </div>
+        </section>
+
+        <section id="leads" class="tab-panel">
+          <div class="grid two-columns">
+            <form id="leadForm" class="panel">
+              <div class="panel-heading">
+                <h2>新增线索</h2>
+                <span>公开来源优先</span>
+              </div>
+              <div class="form-grid">
+                <label>公司<input name="company" required placeholder="例如 Apex Medical Supply" /></label>
+                <label>网站<input name="website" placeholder="https://example.com" /></label>
+                <label>联系人<input name="name" placeholder="Jane Smith" /></label>
+                <label>职位<input name="title" placeholder="Purchasing Manager" /></label>
+                <label>邮箱<input name="email" type="email" placeholder="jane@example.com" /></label>
+                <label>国家/地区<input name="region" placeholder="United States" /></label>
+                <label>
+                  来源
+                  <select name="source">
+                    <option>公司官网公开信息</option>
+                    <option>展会名录</option>
+                    <option>B2B 平台</option>
+                    <option>合规数据供应商</option>
+                    <option>手动录入</option>
+                  </select>
+                </label>
+                <label>
+                  状态
+                  <select name="status">
+                    <option>待研究</option>
+                    <option>待发信</option>
+                    <option>已触达</option>
+                    <option>已回复</option>
+                    <option>已退订</option>
+                  </select>
+                </label>
+                <label class="full">业务备注<textarea name="notes" rows="4" placeholder="公司主营、痛点、个性化切入点"></textarea></label>
+              </div>
+              <button class="primary-button full-width" type="submit">保存线索</button>
+            </form>
+
+            <div class="panel">
+              <div class="panel-heading">
+                <h2>线索池</h2>
+                <input id="searchInput" class="search" placeholder="搜索公司、姓名、邮箱、国家" />
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>公司</th>
+                      <th>联系人</th>
+                      <th>邮箱</th>
+                      <th>状态</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="leadTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="verifier" class="tab-panel">
+          <div class="grid two-columns">
+            <div class="panel">
+              <div class="panel-heading">
+                <h2>邮箱验证</h2>
+                <span>批量预筛选</span>
+              </div>
+              <div class="form-grid">
+                <label>
+                  验证来源
+                  <select id="verifySource">
+                    <option value="leads">线索池邮箱</option>
+                    <option value="manual">手动粘贴</option>
+                  </select>
+                </label>
+                <label>
+                  API 服务
+                  <select id="verifyProvider">
+                    <option value="local">本地预检查</option>
+                    <option value="mailboxvalidator">MailboxValidator API</option>
+                    <option value="zerobounce">ZeroBounce API</option>
+                    <option value="neverbounce">NeverBounce API</option>
+                    <option value="hunter">Hunter Verifier API</option>
+                  </select>
+                </label>
+                <label class="full">
+                  API Key
+                  <input id="verifyApiKey" type="password" placeholder="不在浏览器填写；请放到后端 .env 文件里" disabled />
+                </label>
+                <label class="full">
+                  手动邮箱列表
+                  <textarea id="manualEmails" rows="6" placeholder="每行一个邮箱，或用逗号分隔"></textarea>
+                </label>
+              </div>
+              <div class="button-row">
+                <button id="runVerifyBtn" class="primary-button" type="button">开始验证</button>
+                <button id="applyVerifyBtn" class="ghost-button" type="button">写回线索状态</button>
+                <button id="exportVerifiedBtn" class="ghost-button" type="button">导出可发送</button>
+              </div>
+              <p class="hint">本地预检查能发现格式错误、明显无效、角色邮箱、免费邮箱和一次性邮箱风险。真正的 SMTP/MX/收件箱验证需要接第三方 API 或后端服务。</p>
+            </div>
+
+            <div class="panel">
+              <div class="panel-heading">
+                <h2>验证结果</h2>
+                <span id="verifySummary">尚未验证</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>邮箱</th>
+                      <th>结果</th>
+                      <th>原因</th>
+                    </tr>
+                  </thead>
+                  <tbody id="verifyTable">
+                    <tr><td colspan="3" class="empty">点击开始验证后显示结果。</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="composer" class="tab-panel">
+          <div class="grid two-columns">
+            <div class="panel">
+              <div class="panel-heading">
+                <h2>开发信生成器</h2>
+                <span>本地模板版</span>
+              </div>
+              <div class="form-grid">
+                <label class="full">选择线索<select id="leadSelect"></select></label>
+                <label>产品/服务<input id="productInput" placeholder="例如 OEM disposable gloves" /></label>
+                <label>
+                  语气
+                  <select id="toneInput">
+                    <option>简洁专业</option>
+                    <option>礼貌正式</option>
+                    <option>外贸直给</option>
+                  </select>
+                </label>
+                <label class="full">你的优势<textarea id="valueInput" rows="4" placeholder="交期、认证、价格、定制、案例等"></textarea></label>
+              </div>
+              <button id="generateBtn" class="primary-button full-width" type="button">生成邮件草稿</button>
+            </div>
+
+            <div class="panel mail-panel">
+              <div class="panel-heading">
+                <h2>邮件草稿</h2>
+                <button id="copyBtn" class="ghost-button" type="button">复制</button>
+              </div>
+              <label>标题<input id="subjectOutput" /></label>
+              <label class="mail-body">正文<textarea id="emailOutput" rows="17"></textarea></label>
+            </div>
+          </div>
+        </section>
+
+        <section id="pipeline" class="tab-panel">
+          <div id="pipelineBoard" class="pipeline"></div>
+        </section>
+
+        <section id="compliance" class="tab-panel">
+          <div class="grid two-columns">
+            <div class="panel">
+              <div class="panel-heading">
+                <h2>发送前检查</h2>
+                <span>长期可持续</span>
+              </div>
+              <div class="checklist">
+                <label><input type="checkbox" /> 联系方式来自公开、授权或合规供应商来源</label>
+                <label><input type="checkbox" /> 使用真实发件人、真实公司名称</label>
+                <label><input type="checkbox" /> 标题不误导，不伪装成已有合作</label>
+                <label><input type="checkbox" /> 邮件包含公司地址或可识别身份信息</label>
+                <label><input type="checkbox" /> 邮件包含清晰退订方式</label>
+                <label><input type="checkbox" /> 已过滤退订、无效和投诉联系人</label>
+                <label><input type="checkbox" /> 每个邮箱每天低频发送并监控退信率</label>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-heading">
+                <h2>联系人获取路线</h2>
+                <span>推荐优先级</span>
+              </div>
+              <ul class="roadmap">
+                <li>官网 contact、about、team、sales、distributors 页面</li>
+                <li>展会官网参展商名录和公开联系人</li>
+                <li>B2B 平台公开公司主页与询盘信息</li>
+                <li>合规数据供应商 API，例如 Hunter、Apollo、Snov 等</li>
+                <li>人工确认后入库，再做邮箱验证和低频触达</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="settings" class="tab-panel">
+          <div class="grid two-columns">
+            <form id="settingsForm" class="panel">
+              <div class="panel-heading">
+                <h2>API 设置</h2>
+                <span id="settingsStatus">本机保存</span>
+              </div>
+              <div class="form-grid">
+                <label class="full">
+                  MailboxValidator API Key
+                  <input id="settingsMailboxKey" type="password" placeholder="用于邮箱验证" autocomplete="off" />
+                </label>
+                <label>
+                  邮件生成服务
+                  <select id="settingsAiProvider">
+                    <option value="openai">ChatGPT / OpenAI</option>
+                    <option value="doubao">豆包 / 火山方舟</option>
+                    <option value="kimi">Kimi / Moonshot</option>
+                    <option value="custom">自定义 OpenAI 兼容 API</option>
+                  </select>
+                </label>
+                <label>
+                  模型
+                  <input id="settingsAiModel" placeholder="例如 gpt-4.1-mini" />
+                </label>
+                <label class="full">
+                  Base URL
+                  <input id="settingsAiBaseUrl" placeholder="https://api.openai.com/v1" />
+                </label>
+                <label class="full">
+                  AI API Key
+                  <input id="settingsAiKey" type="password" placeholder="用于自动生成开发信" autocomplete="off" />
+                </label>
+                <label>
+                  全网搜索服务
+                  <select id="settingsSearchProvider">
+                    <option value="serpapi">SerpAPI</option>
+                    <option value="brave">Brave Search API</option>
+                    <option value="bing">Bing Web Search API</option>
+                    <option value="custom">自定义搜索 API</option>
+                  </select>
+                </label>
+                <label>
+                  搜索地区
+                  <input id="settingsSearchRegion" placeholder="us / global / cn" />
+                </label>
+                <label class="full">
+                  搜索 Base URL
+                  <input id="settingsSearchBaseUrl" placeholder="由 Provider 自动填入，也可自定义" />
+                </label>
+                <label class="full">
+                  搜索 API Key
+                  <input id="settingsSearchApiKey" type="password" placeholder="用于全网搜索目标公司" autocomplete="off" />
+                </label>
+              </div>
+              <button class="primary-button full-width" type="submit">保存设置</button>
+            </form>
+
+            <div class="panel">
+              <div class="panel-heading">
+                <h2>Provider 参考</h2>
+                <span>OpenAI 兼容</span>
+              </div>
+              <ul class="roadmap">
+                <li>ChatGPT/OpenAI：Base URL 通常为 https://api.openai.com/v1</li>
+                <li>豆包/火山方舟：填写火山方舟提供的 OpenAI 兼容 Base URL 和模型名</li>
+                <li>Kimi/Moonshot：填写 Moonshot 提供的 OpenAI 兼容 Base URL 和模型名</li>
+                <li>自定义：只要兼容 /chat/completions，就可以接入</li>
+                <li>全网搜索：推荐 SerpAPI、Brave Search API 或 Bing Web Search API</li>
+                <li>Key 只保存在本机配置文件，不写进前端代码</li>
+              </ul>
+            </div>
+
+            <div class="panel author-panel">
+              <div class="panel-heading">
+                <h2>作者信息</h2>
+                <span>Project watermark</span>
+              </div>
+              <div class="author-profile">
+                <strong>Spyro Yu</strong>
+                <span>Contact: y1921127348@gmail.com</span>
+                <a class="primary-button author-link" href="https://github.com/Spyro043/DALONG-SALES-BOX" target="_blank" rel="noreferrer">打开 GitHub 项目</a>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <template id="emptyStateTemplate">
+      <tr>
+        <td colspan="5" class="empty">暂无线索。先从“找联系人”确认公开联系方式，或手动新增、导入 CSV。</td>
+      </tr>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
