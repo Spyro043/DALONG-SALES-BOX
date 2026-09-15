@@ -27,10 +27,14 @@
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const email = value => String(value || '').trim().toLowerCase();
   const role = /^(?:info|sales|contact|hello|office|admin|support|service|enquir(?:y|ies)|inquir(?:y|ies)|marketing|export|commercial|team|mail|booking|orders?|hr|accounts?|general|reception|customerservice|noreply|no-reply)(?:[._+-].*)?$/i;
+  function givenName(value) {
+    const name=String(value||'').trim(),ordered=name.includes(',')?name.split(',')[1].trim():name;
+    return ordered.replace(/^(?:mr|mrs|ms|miss|dr|prof)\.?\s+/i,'').split(/\s+/)[0]||name;
+  }
   function recipientName(c) {
     const name = String(c.name || '').trim();
     const generic = role.test(email(c.email).split('@')[0]);
-    return (!generic && name && !role.test(name) && !name.includes('@') ? name : String(c.company || '').trim()) || 'Team';
+    return (!generic && name && !role.test(name) && !name.includes('@') ? givenName(name) : String(c.company || '').trim()) || 'Team';
   }
   function tokens(value, c, html = false) {
     const data = {name:recipientName(c), company:c.company || '', email:c.email || ''};
