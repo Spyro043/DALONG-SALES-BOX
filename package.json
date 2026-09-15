@@ -1,6 +1,6 @@
 {
   "name": "outreach-desk",
-  "version": "2.1.7",
+  "version": "2.1.8",
   "description": "Dragon sales box - customer, product, document and email workspace by Spyro Yu",
   "author": "Spyro Yu <y1921127348@gmail.com>",
   "main": "electron-main.js",
