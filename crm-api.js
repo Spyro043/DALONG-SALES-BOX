@@ -107,11 +107,12 @@ function createCrmApi({database, persist, ai, crawl, searchWeb, loadSettings, ve
       if(provider==='local'&&typeof localPrecheck!=='function')throw new Error('本地预检模块未加载');
       const emails=[...new Set((Array.isArray(body.emails)?body.emails:[]).map(CRM.email).filter(Boolean))];
       if(!emails.length||emails.length>50)throw new Error('每批请提交 1–50 个邮箱');
-      const results=[];
+      const db=database();db.emailChecks ||= {};const maxAge=provider==='local'?7*864e5:864e5;
+      const reusable=email=>{const x=db.emailChecks[email],age=Date.now()-new Date(x?.at||0).getTime();return x&&x.provider===provider&&age>=0&&age<maxAge&&!/spamhaus|blocked|service unavailable|spam filter|rate limit/i.test((x.reasons||[]).join(' '));};
+      const results=emails.filter(reusable).map(email=>({...db.emailChecks[email],cached:true})),pending=emails.filter(email=>!reusable(email));
       // SMTP prechecks use lower concurrency to reduce remote throttling.
       const concurrency=provider==='local'?2:3;
-      for(let i=0;i<emails.length;i+=concurrency)results.push(...await Promise.all(emails.slice(i,i+concurrency).map(email=>emailOK(email)?(provider==='local'?localPrecheck(email):verifyEmail(email,s.mailboxValidatorApiKey)):{email,status:'invalid',label:'格式无效',reasons:['邮箱格式无效']})));
-      const db=database();db.emailChecks ||= {};
+      for(let i=0;i<pending.length;i+=concurrency)results.push(...await Promise.all(pending.slice(i,i+concurrency).map(email=>emailOK(email)?(provider==='local'?localPrecheck(email):verifyEmail(email,s.mailboxValidatorApiKey)):{email,status:'invalid',label:'格式无效',reasons:['邮箱格式无效']})));
       for(const r of results) {
         const key=CRM.email(r.email);db.emailChecks[key]={email:key,status:r.status,label:r.label,reasons:r.reasons,provider,checks:r.checks,at:now()};
         for(const c of db.customers.filter(c=>CRM.email(c.email)===key)) {c.emailVerification=r.status;c.emailVerifiedAt=now();}

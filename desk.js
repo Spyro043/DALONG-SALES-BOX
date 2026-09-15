@@ -109,7 +109,7 @@ document.addEventListener('click',async ev=>{const navEl=ev.target.closest('[dat
     if(a==='importDiscovered'){const c=window.discovered[id];editCustomer({...c,description:c.snippets?.join('\n'),source:c.sources?.map(s=>s.url).join('\n'),industry:$('[name=industry]')?.value});}
     if(a==='crawlDiscovered')await crawlWebsite(window.discovered[id].website);
     if(a==='importCrawled')editCustomer({website:window.crawled.website,email:window.crawled.emails[id],source:window.crawled.pages.map(p=>p.url).join('\n')});
-    if(a==='verifyCustomers')$('[name=verifyEmails]').value=state.customers.map(c=>c.email).filter(Boolean).join('\n');
+    if(a==='verifyCustomers')chooseVerificationCustomers();
     if(a==='runVerify')await runVerification();
     if(a==='mailmeteorFinder'){
       const name=$('[name=guessName]').value.trim(),domain=$('[name=guessDomain]').value.trim().replace(/^https?:\/\//i,'').split('/')[0];

@@ -101,6 +101,9 @@ async function verifyEmailLocally(value, deps = {}) {
     return { email, status: 'invalid', label: '域名不可收信', reasons: ['域名没有 MX 或可用 A 记录'], checkedAt, checks: { syntax: true, dns: false } };
   }
   const dnsReason = mail.mx ? `发现 ${mail.hosts.length} 个 MX 邮件服务器` : '没有 MX，使用域名 A 记录继续预检';
+  if (!deps.smtp) {
+    return { email, status: 'unknown', label: 'MX 正常', reasons: [dnsReason, '安全本地预检未连接收件服务器；邮箱是否存在需使用验证 API'], checkedAt, checks: { syntax: true, dns: true, smtp: null } };
+  }
   let target;
   try { target = await probeRecipient(mail.hosts, email, deps); }
   catch (error) {
@@ -108,8 +111,9 @@ async function verifyEmailLocally(value, deps = {}) {
   }
   const code = target.reply.code;
   if (!ACCEPTED.has(code)) {
-    const permanent = code >= 500 && code < 600;
-    return { email, status: permanent ? 'invalid' : 'unknown', label: permanent ? '服务器拒收' : '临时不确定', reasons: [dnsReason, `收件服务器返回 ${code} ${target.reply.message}`], checkedAt, checks: { syntax: true, dns: true, smtp: false, code } };
+    const restricted = /spamhaus|blocked|service unavailable|too many|rate limit|spam filter|access denied|try again|temporar/i.test(target.reply.message);
+    const permanent = code >= 500 && code < 600 && !restricted;
+    return { email, status: permanent ? 'invalid' : 'unknown', label: permanent ? '服务器拒收' : restricted ? '验证受限' : '临时不确定', reasons: [dnsReason, `收件服务器返回 ${code} ${target.reply.message}`], checkedAt, checks: { syntax: true, dns: true, smtp: restricted ? null : false, code } };
   }
   const random = `dsb-check-${crypto.randomBytes(10).toString('hex')}@${domain}`;
   try {
