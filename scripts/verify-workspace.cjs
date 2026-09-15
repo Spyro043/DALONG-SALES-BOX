@@ -5,6 +5,8 @@ const path=require('path');
 const nodemailer=require('nodemailer');
 const sent=[];
 nodemailer.createTransport=()=>({verify:async()=>true,close(){},sendMail:async mail=>{sent.push(mail);if(mail.to==='fail@example.com')throw new Error('Fixture rejection');return {accepted:[mail.to],messageId:'test-message'};}});
+const {ImapFlow}=require('imapflow'),appended=[];
+ImapFlow.prototype.connect=async function(){this.usable=true;};ImapFlow.prototype.list=async()=>[{path:'Sent',specialUse:'\\Sent'}];ImapFlow.prototype.append=async(_path,raw)=>appended.push(raw);ImapFlow.prototype.logout=async function(){this.usable=false;};
 const {startServer}=require('../server');
 const {totals,margin,documentHtml}=require('../workspace-api');
 const Excel=require('exceljs');
@@ -21,6 +23,7 @@ async function main(){
     await request('migrate',{customers:[c,c]});assert.equal((await request('state')).customers.length,1);
     await request('communication',{id:c.id,summary:'Phone call',complete:true});assert.equal((await request('state')).customers[0].nextFollowUp,'');
     const p=await request('save',{collection:'products',record:{name:'Containment boom',sku:'DSB-01',price:12.5}});
+    const remove1=await request('save',{collection:'customers',record:{company:'Remove one'}}),remove2=await request('save',{collection:'customers',record:{company:'Remove two'}});const removed=await request('delete',{collection:'customers',ids:[remove1.id,remove2.id]});assert.equal(removed.deleted,2);
     let doc=await request('save',{collection:'documents',record:{type:'QT',number:'QT-TEST',date:'2026-09-14',buyer:c,seller:{company:'Seller'},currency:'USD',items:[{...p,quantity:3}],freight:2,template:{color:'#123456',columns:['name','amount']}}});
     assert.equal(doc.total,39.5);doc=await request('save',{collection:'documents',record:{...doc,notes:'Updated'}});assert.equal(doc.version,2);assert.equal(doc.history.length,1);
     const html=documentHtml(doc);assert(html.includes('Test &amp; Co'));assert(html.includes('39.50'));assert(html.includes('#123456'));
@@ -31,15 +34,15 @@ async function main(){
       global.fetch=async(url,options)=>String(url).startsWith('https://fixture.company')?new Response(String(url).endsWith('robots.txt')?'User-agent: *\nAllow: /':'<html><head><title>Fixture Ltd</title></head><body><nav><a href="/contact">Contact</a></nav><a href="mailto:hello@fixture.company">Email us</a><footer>sales@fixture.company</footer></body></html>'):originalFetch(url,options);
       const crawl=await request('crawl',{website:'https://fixture.company'});assert(crawl.emails.includes('hello@fixture.company'));assert(crawl.emails.includes('sales@fixture.company'));assert(crawl.pages.length<=3);
     }finally{global.fetch=originalFetch;dns.lookup=originalLookup;}
-    await request('settings',{smtpHost:'fixture',smtpUser:'sender@example.com',smtpPassword:'secret'});assert.equal((await request('settings')).smtpPassword,'');
+    await request('settings',{smtpHost:'fixture',smtpUser:'sender@example.com',smtpPassword:'secret',syncSent:true,imapHost:'imap.fixture',imapPort:993});const savedSettings=await request('settings');assert.equal(savedSettings.smtpPassword,'');assert.equal(savedSettings.syncSent,true);
     const fail=await request('save',{collection:'customers',record:{company:'Failure',email:'fail@example.com'}});
     const opted=await request('save',{collection:'customers',record:{company:'Opted out',email:'opt@example.com',status:'已退订'}});
     const job=await request('send',{ids:[c.id,fail.id,opted.id],subject:'Hello {公司}',html:'Dear {姓名}',text:'Dear {姓名}',interval:1});
     let status;for(let i=0;i<40;i++){status=await request('job?id='+job.id);if(status.status!=='running')break;await new Promise(r=>setTimeout(r,100));}
-    assert.equal(status.total,2);assert.equal(status.results[0].status,'sent');assert.equal(status.results[1].status,'failed');assert.equal(sent.length,2);assert.equal(sent[0].html,'Dear Jane');
+    assert.equal(status.total,2);assert.equal(status.results[0].status,'sent');assert.equal(status.results[0].sentSynced,true);assert.equal(status.results[1].status,'failed');assert.equal(sent.length,2);assert.equal(sent[0].html,'Dear Jane');assert.equal(appended.length,1);assert(appended[0].includes(Buffer.from('Hello Test & Co')));
     const db=await request('state');assert.equal(db.customers.find(x=>x.id===c.id).communications.length,2);assert.equal(db.customers.find(x=>x.id===fail.id).lastContact,undefined);
     const secret=await fetch(server.url+'/workspace-settings.json');assert.equal(secret.status,404);
-    console.log('PASS: persistence, migration dedupe, follow-up, document versions, totals, margins, XLSX, SMTP success/failure/opt-out, secrets');
+    console.log('PASS: persistence, migration dedupe, follow-up, document versions, totals, margins, XLSX, SMTP/IMAP sent sync, failure/opt-out, secrets');
   }finally{await new Promise(r=>server.server.close(r));}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

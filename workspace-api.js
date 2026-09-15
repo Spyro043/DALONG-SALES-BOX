@@ -5,6 +5,8 @@ const dns = require('dns').promises;
 const net = require('net');
 const Excel = require('exceljs');
 const nodemailer = require('nodemailer');
+const MailComposer = require('nodemailer/lib/mail-composer');
+const { ImapFlow } = require('imapflow');
 const cheerio = require('cheerio');
 const sanitize = require('sanitize-html');
 const CRM = require('./crm-core');
@@ -93,9 +95,16 @@ function createWorkspaceApi(ctx) {
   function read(p, fallback) { if (!fs.existsSync(p)) return fallback; return JSON.parse(fs.readFileSync(p, 'utf8')); }
   function write(p, data) { fs.mkdirSync(path.dirname(p), { recursive:true }); fs.writeFileSync(p+'.tmp', JSON.stringify(data,null,2)); if(fs.existsSync(p)) fs.copyFileSync(p,p+'.bak'); fs.renameSync(p+'.tmp',p); }
   const database = () => { const db={templates:[],...read(file(),{version:2,customers:[],products:[],documents:[],campaigns:[]})}; if(upgrade(db))write(file(),db); return db; };
-  const settings = () => read(settingsFile(), { smtpHost:'smtp.263.net', smtpPort:465, smtpSecurity:'SSL', smtpUser:'', smtpPassword:'', senderName:'Spyro Yu', signature:'', seller:{}, officeStart:9, officeEnd:18 });
+  const settings = () => read(settingsFile(), { smtpHost:'smtp.263.net', smtpPort:465, smtpSecurity:'SSL', smtpUser:'', smtpPassword:'', senderName:'Spyro Yu', syncSent:false, imapHost:'imap.263.net', imapPort:993, signature:'', seller:{}, officeStart:9, officeEnd:18 });
   function publicSettings() { const s=settings(); return {...s, smtpPassword:'', passwordConfigured:Boolean(s.smtpPassword)}; }
   function transport() { const s=settings(); if(!s.smtpHost || !s.smtpUser || !s.smtpPassword) throw new Error('请先在设置中配置SMTP账号和授权码'); return nodemailer.createTransport({host:s.smtpHost,port:Number(s.smtpPort),secure:s.smtpSecurity==='SSL',requireTLS:s.smtpSecurity!=='SSL',auth:{user:s.smtpUser,pass:s.smtpPassword},connectionTimeout:15000,greetingTimeout:15000,socketTimeout:30000}); }
+  async function saveToSent(s, message) {
+    if(!s.syncSent)return;
+    if(!s.imapHost)throw new Error('未配置 IMAP 服务器');
+    const client=new ImapFlow({host:s.imapHost,port:Number(s.imapPort)||993,secure:Number(s.imapPort)!==143,auth:{user:s.smtpUser,pass:s.smtpPassword},logger:false,connectionTimeout:15000,greetingTimeout:15000,socketTimeout:30000});
+    try { await client.connect();const boxes=await client.list();const sent=boxes.find(x=>x.specialUse==='\\Sent');if(!sent)throw new Error('未找到“已发送”文件夹');const raw=await new MailComposer(message).compile().build();await client.append(sent.path,raw,['\\Seen'],new Date()); }
+    finally { if(client.usable)await client.logout().catch(()=>{}); }
+  }
   async function ai(prompt, image) {
     const s=loadSettings(); if(!s.aiApiKey) throw new Error('请先配置AI API；图片识别需要支持视觉的模型');
     const content=[{type:'text',text:prompt}]; if(image) { if(!/^data:image\/(png|jpeg|webp);base64,/.test(image)) throw new Error('图片格式不支持'); content.push({type:'image_url',image_url:{url:image}}); }
@@ -129,9 +138,11 @@ function createWorkspaceApi(ctx) {
         const persist=()=>{const db=database();const old=db.campaigns.findIndex(x=>x.id===job.id);if(old>=0)db.campaigns[old]=job;else db.campaigns.push(job);write(file(),db);};
         persist();
         try {
-          const result=await smtp.sendMail({from:{name:s.senderName,address:s.smtpUser},to:c.email,subject,html:cleanHtml(rendered.html)+cleanHtml(CRM.tokens(s.signature,c,true)),text:rendered.text,attachments:(payload.attachments||[]).map(a=>({filename:String(a.name),content:Buffer.from(a.base64,'base64')})),attachDataUrls:true,disableFileAccess:true,disableUrlAccess:true});
+          const message={from:{name:s.senderName,address:s.smtpUser},to:c.email,subject,html:cleanHtml(rendered.html)+cleanHtml(CRM.tokens(s.signature,c,true)),text:rendered.text,attachments:(payload.attachments||[]).map(a=>({filename:String(a.name),content:Buffer.from(a.base64,'base64')})),attachDataUrls:true,disableFileAccess:true,disableUrlAccess:true};
+          const result=await smtp.sendMail(message);
           if(!result.accepted?.length)throw new Error('SMTP未接受收件人');
           item.status='sent';item.messageId=result.messageId;item.at=now();
+          try { await saveToSent(s,{...message,messageId:result.messageId,date:new Date(item.at)});item.sentSynced=Boolean(s.syncSent); } catch(e) { item.sentSyncError=e.message; }
           const db=database(), customer=db.customers.find(x=>x.id===c.id);
           if(customer){customer.communications ||= [];customer.communications.push({id:uid(),channel:'邮件',at:item.at,subject,recipientEmail:c.email,recipientName:rendered.recipientName,direction:'outgoing',summary:'发送邮件：'+subject+'；收件邮箱：'+c.email,messageId:result.messageId});if(!customer.status||['待研究','待发信','已触达'].includes(customer.status))customer.status='已触达';customer.lastContact=item.at;customer.updatedAt=item.at;}
           write(file(),db);
@@ -163,7 +174,7 @@ function createWorkspaceApi(ctx) {
       if(collection==='customers'){prepareCustomer(db,record,prior);record.grade=/^[ABCD]$/.test(record.grade)?record.grade:'C';record.communications=prior?.communications||data.communications||[];}
       db[collection]=db[collection].filter(x=>x.id!==record.id).concat(record);write(file(),db);return done(record);
     }
-    if(route==='/delete'&&req.method==='POST'){const db=database();if(!['customers','products'].includes(body.collection))throw new Error('不支持删除');db[body.collection]=db[body.collection].filter(x=>x.id!==body.id);write(file(),db);return done({ok:true});}
+    if(route==='/delete'&&req.method==='POST'){const db=database();if(!['customers','products'].includes(body.collection))throw new Error('不支持删除');const ids=new Set((Array.isArray(body.ids)?body.ids:[body.id]).filter(x=>typeof x==='string').slice(0,500));if(!ids.size)throw new Error('请选择要删除的记录');const before=db[body.collection].length;db[body.collection]=db[body.collection].filter(x=>!ids.has(x.id));write(file(),db);return done({ok:true,deleted:before-db[body.collection].length});}
     if(route==='/communication'&&req.method==='POST'){const db=database(),c=db.customers.find(x=>x.id===body.id);if(!c)throw new Error('客户不存在');c.communications||=[];c.communications.push({id:uid(),at:now(),channel:body.channel||'手动',summary:String(body.summary||'')});c.lastContact=now();if(body.complete)c.nextFollowUp='';write(file(),db);return done(c);}
     if(route==='/migrate'&&req.method==='POST'){const db=database();for(const c of (body.customers||[])){if(db.customers.some(x=>x.id===c.id||(c.email&&x.email?.toLowerCase()===c.email.toLowerCase())))continue;db.customers.push({...c,id:c.id||uid(),grade:c.grade||'C',communications:c.communications||[]});}write(file(),db);return done(db);}
     if(route==='/crawl'&&req.method==='POST'){const pages=await crawl(body.website);return done({pages,emails:[...new Set(pages.flatMap(p=>p.text.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi)||[]))]});}
