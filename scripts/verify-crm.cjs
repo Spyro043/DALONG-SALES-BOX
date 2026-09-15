@@ -26,7 +26,7 @@ async function main(){
     await api('follow-up',{id:jane.id,nextFollowUp:'2026-10-14T19:30',followUpNotes:'报价后电话跟进'});state=await api('state');assert.equal(state.customers.find(c=>c.id===jane.id).nextFollowUp,'2026-10-14T19:30');
     await api('follow-up',{id:jane.id,nextFollowUp:'',followUpNotes:'保留备注'});assert.equal((await api('state')).customers.find(c=>c.id===jane.id).followUpNotes,'保留备注');
     await assert.rejects(()=>api('link-verified',{email:'unverified@example.com',mode:'new',company:'No'}));
-    await api('settings',{smtpHost:'fixture',smtpUser:'sender@example.com',smtpPassword:'fixture',signature:'<p>Best regards</p>'});
+    await api('settings',{smtpHost:'fixture',smtpUser:'sender@example.com',smtpPassword:'fixture',signature:'<table style="width: 440px; margin-left: 0px"><tr><td style="padding-right: 20px"><img src="file:///broken.png"><b>Best regards</b></td></tr></table>'});
     await fetch(s.url+'/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mailboxValidatorApiKey:'fixture'})});
     const oldFetch=global.fetch;
     try{global.fetch=async(url,...args)=>String(url).startsWith('https://api.mailboxvalidator.com/')?new Response(JSON.stringify({email_address:new URL(url).searchParams.get('email'),status:'True',is_verified:'True',mailboxvalidator_score:.99,is_role:'False'})):oldFetch(url,...args);
@@ -36,7 +36,7 @@ async function main(){
     await api('link-verified',{mode:'existing',customerId:jane.id,email:'new.person@example.com',name:'Updated Person'});state=await api('state');assert.equal(state.customers.filter(c=>c.email==='new.person@example.com').length,1);assert.equal(state.customers.find(c=>c.id===jane.id).name,'Jane Smith');
     const moved=await api('link-verified',{mode:'new',company:'Separate Co',email:'new.person@example.com',name:'Updated Person',tradeRegion:'欧洲'});assert.equal(moved.customer.companyId,moved.customer.id);
     const payload={subject:'To {公司}',html:'<p>Dear Someone,</p><p>Hello from us.</p>',text:'Dear Someone,\nHello from us.',ids:[jane.id,generic.id],interval:1};
-    const preview=await api('mail-preview',{...payload,id:generic.id});assert(preview.html.includes('Dear Ocean &amp; Co,'));assert(!preview.html.includes('Wrong name'));
+    const preview=await api('mail-preview',{...payload,id:generic.id});assert(preview.html.includes('Dear Ocean &amp; Co,'));assert(!preview.html.includes('Wrong name'));assert(preview.html.includes('width:440px'));assert(preview.html.includes('padding-right:20px'));assert(!preview.html.includes('broken.png'));
     const job=await api('send',payload);let status;for(let i=0;i<60;i++){status=await api('job?id='+job.id);if(status.status!=='running')break;await new Promise(r=>setTimeout(r,100));}assert.equal(status.status,'complete');assert.equal(sent.length,2);assert(sent.find(x=>x.to===jane.email).html.includes('Dear Jane,'));assert.equal(sent.find(x=>x.to===generic.email).html,preview.html);assert(sent.every(x=>typeof x.to==='string'&&!x.cc&&!x.bcc));
     const afterSend=(await api('state')).customers.find(c=>c.id===jane.id),communication=afterSend.communications.at(-1);assert.equal(communication.recipientEmail,jane.email);assert.equal(communication.channel,'邮件');assert(communication.at&&Number.isFinite(Date.parse(communication.at)));assert.equal(communication.subject,'To Desert Co');
     const doc=await api('save',{collection:'documents',record:{type:'QT',number:'IMG-TEST',items:[{name:'Product',quantity:2,price:3,image:PNG}],showProductImages:true,language:'en'}});
