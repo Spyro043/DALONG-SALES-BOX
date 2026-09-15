@@ -27,6 +27,11 @@ function upgrade(db) {
     seen.add(c.customerNumber);
     if (!c.companyId) { c.companyId=c.id; changed=true; }
   }
+  for (const check of Object.values(db.emailChecks||{})) {
+    if(check.provider!=='local'||!Object.prototype.hasOwnProperty.call(check.checks||{},'smtp'))continue;
+    check.status='unknown';check.label='需安全复检';check.reasons=['旧版本地 SMTP 探测结果已撤销，请使用安全本地预检或验证 API'];delete check.checks.smtp;changed=true;
+    for(const c of db.customers.filter(c=>CRM.email(c.email)===CRM.email(check.email))){c.emailVerification='unknown';c.emailVerifiedAt=check.at;}
+  }
   return changed;
 }
 
